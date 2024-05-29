@@ -1,0 +1,14 @@
+version: '3.2'
+services:
+  node:
+    build: .
+    ports:
+      - "3005"
+    volumes:
+      - ./wss:/home/src
+    networks:
+      - omrch
+networks:
+  omrch:
+    driver: bridge
+      

@@ -1,0 +1,47 @@
+version: '3.1'
+name: omrch-docker
+services:
+  database:
+    image: mysql:latest
+    container_name: omrch-mysql
+    ports:
+      - 3306:3306
+    env_file:
+      - .env
+    command: --default-authentication-plugin=caching_sha2_password
+    volumes:
+      - ./preload:/docker-entrypoint-initdb.d
+      - persistent:/var/lib/mysql
+    networks:
+      - omrch 
+  apache:
+    build: .
+    ports:
+      - "80:80"
+    volumes:
+      - ./www:/var/www/html
+    links:
+      - database:database
+    networks:
+      - omrch
+  phpmyadmin:
+    image: phpmyadmin:latest
+    environment:
+      - PMA_HOST=database
+    ports:
+      - "8080:80"
+    links:
+      - database:database
+    env_file:
+      - .env
+    networks:
+      - omrch
+networks:
+  omrch:
+    driver: bridge
+volumes:
+  persistent:
+
+
+
+

@@ -1,0 +1,10 @@
+FROM node:20-alpine3.18
+
+WORKDIR /home/src
+COPY ./wss/server.js /home/src
+COPY ./wss/package.json /home
+RUN npm install
+RUN  npm install ws -E
+RUN npm i tailwind
+RUN npm install mysql -E
+CMD [ "npm", "start" ]
