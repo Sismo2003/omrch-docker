@@ -1,9 +1,9 @@
 import WebSocket, { WebSocketServer } from 'ws';
-import mysql from 'mysql';
+import mysql from 'mysql2';
 
 // Configuración de la conexión a la base de datos
 const dbConfig = {
-    host: '172.23.0.3',
+    host: '45.79.19.252',
     user: 'root',
     password: 'TioGazpacho',
     database: 'omrch'
