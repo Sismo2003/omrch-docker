@@ -9,37 +9,55 @@ const dbConfig = {
     database: 'omrch'
 };
 
-// Crear la conexión a la base de datos
-const connection = mysql.createConnection(dbConfig);
+// Función para ejecutar consultas a la base de datos
+function queryDatabase(query, params, callback) {
+    const connection = mysql.createConnection(dbConfig);
 
-connection.connect((err) => {
-    if (err) {
-        console.error('Error de conexión a la base de datos:', err);
-        return;
-    }
-    console.log('Conexión establecida con la base de datos');
-});
+    connection.connect((err) => {
+        if (err) {
+            console.error('Error de conexión a la base de datos:', err);
+            callback(err, null);
+            return;
+        }
 
+        connection.query(query, params, (error, results) => {
+            callback(error, results);
+            connection.end();
+        });
+    });
 
-const wss = new WebSocketServer({ port: 32768 });
+    connection.on('error', (err) => {
+        console.error('Error en la conexión a la base de datos:', err);
+        callback(err, null);
+    });
+}
+
+const wss = new WebSocketServer({ port: 3005 });
 wss.on('connection', (ws) => {
     console.log('Client connected');
 
     // Consulta a la base de datos para obtener los mensajes
-    connection.query('SELECT * FROM Messages', (error, results) => {
+    queryDatabase('SELECT * FROM Messages', [], (error, results) => {
         if (error) {
             console.error('Error al recuperar mensajes de la base de datos:', error);
             return;
         }
-
+    
         // Enviar los mensajes al cliente recién conectado
         results.forEach((row) => {
-            // console.log('Enviando mensaje:', row);
+            let sentAt = new Date(row.sent_at);
+    
+            // Sumar 6 horas
+            sentAt.setHours(sentAt.getHours() + 6);
+    
+            // Crear el objeto de datos
             const data = {
                 message: row.message_text,
-                time: row.sent_at,
+                time: sentAt.toISOString(), 
                 author: row.sender
             };
+    
+            // Enviar el mensaje al cliente
             ws.send(JSON.stringify(data));
         });
     });
@@ -65,8 +83,6 @@ wss.on('connection', (ws) => {
             return;
         }
 
-        // console.log('Parsed data:', parsedData);
-
         // Obtener la hora en formato datetime de SQL de GDL
         const now = new Date();
         const options = {
@@ -81,32 +97,25 @@ wss.on('connection', (ws) => {
         };
         const formattedTime = now.toLocaleString('en-CA', options).replace(',', '');
         
-        
-
-        console.log('Fecha actual:', formattedTime);
-
-
-        // console.log('Fecha actual:', formattedTime);
+        //console.log('Fecha actual:', formattedTime);
 
         // Insertar el mensaje en la base de datos
         const insertQuery = "INSERT INTO Messages (user_id, contest_id, sede_id, message_text, sent_at, sender) VALUES (?, ?, ?, ?, ?, ?)";
-        connection.query(insertQuery, [user_id, null, sede_id, message, formattedTime, author], (error, results) => {
+        queryDatabase(insertQuery, [user_id, null, sede_id, message, formattedTime, author], (error, results) => {
             if (error) {
                 console.error('Error al insertar el mensaje en la base de datos:', error);
                 return;
             }
             console.log('Mensaje insertado en la base de datos:', results);
-        });
 
-        wss.clients.forEach(client => {
-            if(client.readyState === WebSocket.OPEN){
-                client.send(data.toString());
-            }
+            // Enviar el mensaje a todos los clientes conectados
+            wss.clients.forEach(client => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(data.toString());
+                }
+            });
         });
-
     });
-
-    //ws.send('something');
 
     ws.on('close', () => {
         console.log('Client disconnected');
